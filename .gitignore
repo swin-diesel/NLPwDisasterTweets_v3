@@ -1,0 +1,30 @@
+# RStudio files
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+.Rprofile
+NLPwDisasterTweets_v3.Rproj
+
+# Kaggle dataset files (DO NOT UPLOAD)
+train.csv
+test.csv
+sample_submission.csv
+
+# renv package management (ignore everything except renv.lock)
+renv/
+
+# Git and RStudio lock/cache files
+.lock
+patch-chunk-names
+
+# Outputs, derived files
+*.html
+*.Rmd
+*.rds
+*.rdb
+*.rdx
+*.rdf
+
+# OneDrive sync temp files
+~$*
