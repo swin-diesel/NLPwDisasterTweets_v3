@@ -1,4 +1,4 @@
-# Natural Language Processing with Disaster Tweets_v4
+# Natural Language Processing with Disaster Tweets_v9
 
 ## Preliminary Tasks
 
@@ -218,4 +218,4 @@ preds_binary_new <- ifelse(preds_new > 0.5, 1, 0)
 submission <- data.frame(id = test_df$id, target = preds_binary_new)
 
 # Write submission to CSV
-write.csv(submission, "submission3.csv", row.names = FALSE)
+write.csv(submission, "submission6.csv", row.names = FALSE)

@@ -1,4 +1,4 @@
-# Natural Language Processing with Disaster Tweets_v3
+# Natural Language Processing with Disaster Tweets_v7
 
 ## Preliminary Tasks
 
@@ -214,4 +214,4 @@ print(paste("F1 Score:", f1_score))
 submission <- data.frame(id = test_df$id, target = preds_binary_new)
 
 # Write submission to CSV
-write.csv(submission, "submission1.csv", row.names = FALSE)
+write.csv(submission, "submission4.csv", row.names = FALSE)
