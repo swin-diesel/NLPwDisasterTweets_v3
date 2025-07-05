@@ -123,7 +123,7 @@ This project is licensed under the **MIT License**.
 
 ## Next Steps
 
-📌 Compare results with **transformer-based models** (e.g., BERT via `reticulate`)
-📌 Expand with **more advanced spell correction and typo normalization**
-📌 Add **model ensemble** between TF-IDF and Word2Vec pipelines
+📌 Compare results with **transformer-based models** (e.g., BERT via `reticulate`)  
+📌 Expand with **more advanced spell correction and typo normalization**  
+📌 Add **model ensemble** between TF-IDF and Word2Vec pipelines  
 📌 Package code for reproducible submission automation
