@@ -1,14 +1,14 @@
-# NLP with Disaster Tweets – Kaggle Classification Challenge
+# NLP with Disaster Tweets – Kaggle Classification Competition
 
-This project explores the application of **Natural Language Processing (NLP)** to classify tweets as related to **real disasters** or not, using a dataset provided by Kaggle. The challenge serves as an excellent introduction to NLP tasks in a binary classification context.
+This project explores the application of **Natural Language Processing (NLP)** to classify tweets as related to **real disasters** or not, as a part of the Kaggle competition [*Natural Language Processing with Disaster Tweets*](https://www.kaggle.com/competitions/nlp-getting-started). The competition is designed to introduce competitors to NLP tasks and workflows as applied to binary classification.
 
 ---
 
 ## Overview
 
-As Twitter continues to serve as a real-time reporting tool, disaster response agencies are increasingly interested in **automated systems** that can distinguish between **actual emergency alerts** and unrelated content.  
+As social media platforms like Twitter (now X) continue to serve as a real-time reporting tool, disaster response agencies are increasingly interested in **automated systems** that can distinguish between **actual emergency alerts** and unrelated content.
 
-Kaggle’s “NLP with Disaster Tweets” challenge provides **10,000 hand-labeled tweets** and tasks participants with building a model that can **predict whether a tweet refers to a real disaster**.  
+The competition provides **10,000 hand-labeled tweets** and tasks participants with building a model that can **predict whether a tweet refers to a real disaster**.
 
 This project:
 - **Tests multiple text preprocessing pipelines**
@@ -36,17 +36,17 @@ The goal is to:
 
 Three experimental versions were created to test different techniques:
 
-### ✅ v7: Baseline Model — TF-IDF + XGBoost  
+### v7: Baseline Model — TF-IDF + XGBoost  
 - Standard preprocessing (lowercasing, punctuation removal, stopwords)  
 - Bag-of-words features with TF-IDF weighting  
 - XGBoost for classification  
 
-### ✅ v8: Enhanced Cleaning + TF-IDF + XGBoost  
+### v8: Enhanced Cleaning + TF-IDF + XGBoost  
 - Added custom cleaning for **UK/US spelling normalization**  
 - Improved text cleaning: extra whitespace stripping, noise reduction  
 - Rebuilt TF-IDF matrix on a more normalized vocabulary  
 
-### ✅ v9: Word2Vec Embeddings + XGBoost  
+### v9: Word2Vec Embeddings + XGBoost  
 - Replaced TF-IDF with **Word2Vec vector averaging**  
 - Captures **semantic similarity** instead of just term frequency  
 - Same classifier (XGBoost), new feature set  
@@ -66,20 +66,31 @@ Three experimental versions were created to test different techniques:
 
 ## Results
 
-✅ **v7 (TF-IDF)** produced stable and repeatable results across multiple runs  
-⚠️ **v8 (Enhanced Cleaning)** introduced slight **variance** in submission output, likely due to **vocabulary shift in TF-IDF**  
-🎲 **v9 (Word2Vec)** showed expected randomness due to underlying stochastic nature of the embeddings  
-
-Each script prints **F1 scores**, **confusion matrices**, and generates a **submission file** (`submissionN.csv`).
+Each version generated a submission file and was evaluated on **Kaggle’s public leaderboard**, which uses a **fixed test set** for F1 score:
+```
+| Version | Pipeline Description       | Kaggle F1 Score |
+|---------|----------------------------|-----------------|
+| v7      | TF-IDF Baseline            | 0.56114         |
+| v8      | Enhanced TF-IDF Cleaning   | 0.57370         |
+| v9      | Word2Vec + XGBoost         | 0.76953         |
+```
+**v9 significantly outperformed** the others, showing that Word2Vec’s semantic representation captured more signal than sparse TF-IDF features.
 
 ---
 
 ## Lessons Learned & Future Improvements
 
-- **TF-IDF vocab instability** can lead to output drift even with fixed seed — consider vocab locking or using `TermDocumentMatrix()` with explicit dictionary  
-- **Word2Vec introduces run-to-run variability** — multiple runs needed to average performance  
-- Custom cleaning (e.g., **British/American spelling unification**) is useful but should be paired with fixed vocab tools  
-- Consider adding **grid search or automated tuning** for future improvements  
+- **Internal F1 ≠ Kaggle Leaderboard F1**  
+  Local validation splits gave **higher F1 scores** than the Kaggle leaderboard. This is a common pitfall when local validation sets do not mirror the distribution or difficulty of the competition's hidden test set. Future versions should use **stratified k-fold CV** or a holdout set that simulates test conditions more realistically.
+
+- **Word2Vec Outperformed TF-IDF**  
+  Even without a neural model like BERT, the Word2Vec embeddings improved classification by capturing deeper semantic structure. This reinforces the value of vector-based representations over sparse features.
+
+- **Advanced Text Cleaning Had Minimal Impact**  
+  While British/American normalization and extra cleaning steps were valuable academically, they produced **minimal gain** in actual classification performance.
+
+- **No Hyperparameter Tuning Was Performed**  
+  All models used basic XGBoost parameters. Future iterations could benefit from **grid search**, **Bayesian optimization**, or **automated tuning** to push performance further.
 
 ---
 
@@ -91,9 +102,9 @@ Each script prints **F1 scores**, **confusion matrices**, and generates a **subm
 ├── NLPwDisasterTweets_v8.R          # Enhanced Preprocessing
 ├── NLPwDisasterTweets_v9.R          # Word2Vec Approach
 ├── uk-us-spelling-list.csv          # Dictionary for normalization
-├── submission4.csv                  # From v7 - Stable
-├── submission5.csv                  # From v8 - Drift Detected
-├── submission6.csv                  # From v9 - Semantic Vectors
+├── submission4.csv                  # From v7 – Score: 0.56114
+├── submission5.csv                  # From v8 – Score: 0.57370
+├── submission6.csv                  # From v9 – Score: 0.76953
 └── README.md                        # This file
 ```
 
@@ -104,14 +115,14 @@ Each script prints **F1 scores**, **confusion matrices**, and generates a **subm
 1. Open the project in **RStudio**.
 2. Run `renv::restore()` to install the required libraries.
 3. Use `source("NLPwDisasterTweets_vX.R")` to run any version (replace `X` with 7, 8, or 9).
-4. Generated predictions will be saved as a submission CSV (e.g., `submission5.csv`).
+4. Generated predictions will be saved as a submission CSV (e.g., `submission6.csv`).
 
 ---
 
 ## Author
 
 **Michael Swindle**  
-[GitHub Profile (Placeholder)](#) | [LinkedIn (Placeholder)](#)
+[GitHub Profile](https://github.com/swin-diesel) | [LinkedIn](#)
 
 ---
 
@@ -123,7 +134,6 @@ This project is licensed under the **MIT License**.
 
 ## Next Steps
 
-📌 Compare results with **transformer-based models** (e.g., BERT via `reticulate`)  
-📌 Expand with **more advanced spell correction and typo normalization**  
-📌 Add **model ensemble** between TF-IDF and Word2Vec pipelines  
-📌 Package code for reproducible submission automation
+- Compare results with **transformer-based models** (e.g., BERT via `reticulate`)
+- Expand with **more advanced spell correction and typo normalization**
+- Add **model ensemble** between TF-IDF and Word2Vec pipelines
