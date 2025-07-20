@@ -121,8 +121,8 @@ Each version generated a submission file and was evaluated on **Kaggle’s publi
 
 ## Author
 
-**Michael Swindle**  
-[GitHub Profile](https://github.com/swin-diesel) | [LinkedIn](#)
+**Michael Swindle**
+[Portfolio Website](https://michaelswindle.dev) | [GitHub Profile](https://github.com/swin-diesel) | [LinkedIn](https://linkedin.com/in/michael-swindle/)
 
 ---
 
