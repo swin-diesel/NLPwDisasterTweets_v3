@@ -4,171 +4,146 @@
 # ========================================================
 
 ## 1. Load Required Libraries ----
-library(caret)        # Machine learning utilities
-library(caTools)      # Data splitting
-library(ggplot2)      # Data visualization
-library(stringr)      # String operations
-library(textstem)     # Lemmatization
-library(tidytext)     # Text processing utilities
-library(tm)           # Text processing (Corpus, DTM)
-library(word2vec)     # Word2Vec embeddings
-library(xgboost)      # XGBoost model
+library(caret)
+library(caTools)
+library(ggplot2)
+library(stringr)
+library(textstem)
+library(tidytext)
+library(tm)
+library(word2vec)
+library(xgboost)
 
 ## 2. Load Datasets ----
 train_df <- read.csv("train.csv", stringsAsFactors = FALSE)
-test_df <- read.csv("test.csv", stringsAsFactors = FALSE)
+test_df  <- read.csv("test.csv",  stringsAsFactors = FALSE)
 
-## 3. Exploratory Data Analysis ----
-# Summary of dataset
-print(head(train_df))
-print(summary(train_df))
-
-# Class distribution
+## 3. EDA (unchanged) ----
+print(head(train_df)); print(summary(train_df))
 ggplot(train_df, aes(x = factor(target))) +
   geom_bar(fill = c("red", "blue")) +
-  labs(title = "Distribution of Disaster vs. Non-Disaster Tweets",
+  labs(title = "Distribution of Disaster vs Non‑Disaster Tweets",
        x = "Tweet Type", y = "Count") +
-  scale_x_discrete(labels = c("Non-Disaster", "Disaster"))
+  scale_x_discrete(labels = c("Non‑Disaster", "Disaster"))
 
 ## 4. Custom Text Cleaning ----
-
-# Load dictionary for American/British spelling conversion
 spellings <- read.csv("uk-us-spelling-list.csv", stringsAsFactors = FALSE)
-us_to_uk <- setNames(spellings$UK, spellings$US)
-uk_to_us <- setNames(spellings$US, spellings$UK)
+us_to_uk  <- setNames(spellings$UK, spellings$US)
+uk_to_us  <- setNames(spellings$US, spellings$UK)
 
-# Function to convert US-English to UK-English
-americanize <- function(text) {
-  words <- unlist(strsplit(text, "\\s"))
-  words <- ifelse(words %in% names(uk_to_us), uk_to_us[words], words)
-  return(paste(words, collapse = " "))
+americanize <- function(t) {
+  w <- unlist(strsplit(t, "\\s")); w <- ifelse(w %in% names(uk_to_us), uk_to_us[w], w)
+  paste(w, collapse = " ")
 }
-
-# Function to convert UK-English to US-English
-anglicize <- function(text) {
-  words <- unlist(strsplit(text, "\\s"))
-  words <- ifelse(words %in% names(us_to_uk), us_to_uk[words], words)
-  return(paste(words, collapse = " "))
-}
-
-# Apply Americanization to training text
 train_df$text <- sapply(train_df$text, americanize)
 
 ## 5. General Text Preprocessing ----
-clean_text <- function(text) {
-  text <- tolower(text)
-  text <- gsub("http[^[:space:]]*", "", text)  # Remove URLs
-  text <- gsub("[^[:alpha:][:space:]]*", "", text)  # Remove punctuation & numbers
-  words <- unlist(strsplit(text, " "))
-  words <- words[!(words %in% stopwords("en"))]  # Remove stopwords
-  text <- paste(words, collapse = " ")
-  return(gsub("\\s+", " ", text))  # Remove extra whitespace
+clean_text <- function(t) {
+  t <- tolower(t)
+  t <- gsub("http[^[:space:]]*", "", t)
+  t <- gsub("[^[:alpha:][:space:]]*", "", t)
+  w <- unlist(strsplit(t, " "))
+  w <- w[!(w %in% stopwords("en"))]
+  gsub("\\s+", " ", paste(w, collapse = " "))
 }
-
-# Apply cleaning function
 train_df$text <- sapply(train_df$text, clean_text)
-test_df$text <- sapply(test_df$text, clean_text)
+test_df$text  <- sapply(test_df$text,  clean_text)
 
 ## 6. Tokenization & Lemmatization ----
-tokenized_text <- strsplit(train_df$text, " ")
-lemmatized_text <- lapply(tokenized_text, lemmatize_strings)
-train_df$text <- sapply(lemmatized_text, paste, collapse = " ")
-
-tokenized_test_text <- strsplit(test_df$text, " ")
-lemmatized_test_text <- lapply(tokenized_test_text, lemmatize_strings)
-test_df$text <- sapply(lemmatized_test_text, paste, collapse = " ")
-
-## 7. Feature Engineering with Word2Vec ----
-
-# Train word2vec model
-word2vec_model <- word2vec(
-  x = train_df$text,
-  type = "cbow",
-  dim = 100,
-  window = 5,
-  iter = 10,
-  lr = 0.05,
-  hs = FALSE,
-  negative = 5,
-  sample = 0.001,
-  min_count = 5,
-  split = c(" \n,.-!?:;/\"#$%&'()*+<=>@[]\\^_`{|}~\t\v\f\r", ".\n?!"),
-  stopwords = stopwords("en"),
-  threads = parallel::detectCores() - 1,
-  encoding = "UTF-8"
+train_df$text <- sapply(
+  lapply(strsplit(train_df$text, " "), lemmatize_strings), paste, collapse = " "
+)
+test_df$text  <- sapply(
+  lapply(strsplit(test_df$text,  " "), lemmatize_strings), paste, collapse = " "
 )
 
-# Generate embeddings for each tweet
-get_sentence_embedding <- function(sentence, model) {
-  words <- unlist(strsplit(sentence, " "))
+## 7. Train/Validation/Test Splits ----
+set.seed(123)
+train_idx   <- sample(seq_len(nrow(train_df)), 0.80 * nrow(train_df))
+train_split <- train_df[train_idx, ]
+test_split  <- train_df[-train_idx, ]
+
+inner_idx   <- sample(seq_len(nrow(train_split)), 0.80 * nrow(train_split))
+train_inner <- train_split[inner_idx, ]
+val_inner   <- train_split[-inner_idx, ]
+
+## 8. Word2Vec Model (fit on train_inner only) ----
+word2vec_model <- word2vec(
+  x        = train_inner$text,
+  type     = "cbow",
+  dim      = 100,
+  window   = 5,
+  iter     = 10,
+  lr       = 0.05,
+  hs       = FALSE,
+  negative = 5,
+  sample   = 0.001,
+  min_count = 5,
+  split    = c(" \n,.-!?:;/\"#$%&'()*+<=>@[]\\^_`{|}~\t\v\f\r", ".\n?!"),
+  stopwords = stopwords("en"),
+  threads   = parallel::detectCores() - 1,
+  encoding  = "UTF-8"
+)
+
+##############  CRITICAL: grab the true embedding size once  ##############
+# Without this, embed_dim can be NULL, which breaks the zero-vector guard
+embed_dim <- attr(word2vec_model, "dim")
+if (is.null(embed_dim)) {
+  embed_dim <- ncol(predict(word2vec_model, "the", type = "embedding"))
+}
+############################################################################
+
+get_sentence_embedding <- function(sent, model) {
+  w <- unlist(strsplit(sent, " "))
+  w <- w[nchar(w) > 0]
   
-  # Initialize a matrix to store the vectors
-  vectors <- matrix(0, length(words), 100)  # Assuming the dimension of the embeddings is 100
+  if (length(w) == 0)
+    return(rep(0, embed_dim))   # 100-dim zero vector
   
-  for (i in 1:length(words)) {
-    # Attempt to get the vector for the word
-    # If the word is not in the model's vocabulary, skip it
-    tryCatch({
-      vectors[i, ] <- predict(model, words[i], type = "embedding")
-    }, error = function(e) {})
-  }
-  
-  # Calculate the average vector for the sentence
-  avg_vector <- colMeans(vectors, na.rm = TRUE)
-  return(avg_vector)
+  vecs <- t(sapply(w, function(word) {
+    out <- tryCatch(predict(model, word, type = "embedding"),
+                    error = function(e) NULL)
+    if (is.null(out)) rep(0, embed_dim) else out
+  }))
+  colMeans(vecs, na.rm = TRUE)
 }
 
-train_embeddings <- t(sapply(train_df$text, get_sentence_embedding, model = word2vec_model))
-test_embeddings <- t(sapply(test_df$text, get_sentence_embedding, model = word2vec_model))
+embed_train <- t(sapply(train_inner$text, get_sentence_embedding,
+                        model = word2vec_model))
+embed_val   <- t(sapply(val_inner$text,   get_sentence_embedding,
+                        model = word2vec_model))
+embed_test  <- t(sapply(test_split$text,  get_sentence_embedding,
+                        model = word2vec_model))
 
-## 8. Model Training (XGBoost) ----
-set.seed(123)
+## 9. Model Training (XGBoost) ----
+dtrain <- xgb.DMatrix(embed_train, label = train_inner$target)
+dval   <- xgb.DMatrix(embed_val,   label = val_inner$target)
+dtest  <- xgb.DMatrix(embed_test,  label = test_split$target)
 
-# Train-test split
-split <- sample.split(train_df$target, SplitRatio = 0.8)
-train_data <- train_embeddings[split, ]
-valid_data <- train_embeddings[!split, ]
-train_target <- train_df$target[split]
-valid_target <- train_df$target[!split]
-
-# Convert to DMatrix format
-dtrain <- xgb.DMatrix(data = as.matrix(train_data), label = train_target)
-dvalid <- xgb.DMatrix(data = as.matrix(valid_data), label = valid_target)
-
-# XGBoost parameters
 params <- list(
   booster = "gbtree",
   objective = "binary:logistic",
   eval_metric = "logloss",
   eta = 0.3,
-  max_depth = 6
+  max_depth = 6,
+  scale_pos_weight = sum(train_inner$target == 0) / sum(train_inner$target == 1)
 )
 
-# Train the model
-num_rounds <- 100
-watchlist <- list(train = dtrain, valid = dvalid)
-model <- xgb.train(params = params, data = dtrain, nrounds = num_rounds, watchlist = watchlist)
+model <- xgb.train(
+  params, dtrain, nrounds = 100,
+  watchlist = list(train = dtrain, val = dval),
+  early_stopping_rounds = 10, verbose = 0
+)
 
-# Predictions on validation data
-preds <- predict(model, dvalid)
-preds_binary <- ifelse(preds > 0.5, 1, 0)
+preds_test <- ifelse(predict(model, dtest) > 0.5, 1, 0)
+cm <- confusionMatrix(as.factor(preds_test), as.factor(test_split$target))
+print(cm); print(paste("F1 Score:", cm$byClass["F1"]))
 
-# Evaluate the model using confusion matrix
-cm <- confusionMatrix(as.factor(preds_binary), as.factor(valid_target))
-print(cm)
+## 10. Prepare Submission ----
+embed_public <- t(sapply(test_df$text, get_sentence_embedding, model = word2vec_model))
+dtest_pub    <- xgb.DMatrix(embed_public)
 
-# Extract and print F1 Score
-f1_score <- cm$byClass["F1"]
-print(paste("F1 Score:", f1_score))
-
-## 9. Prepare Submission ----
-# Convert test embeddings to DMatrix
-dtest_new <- xgb.DMatrix(data = as.matrix(test_embeddings))
-
-# Make predictions
-preds_new <- predict(model, dtest_new)
-preds_binary_new <- ifelse(preds_new > 0.5, 1, 0)
-
-# Create submission file
-submission <- data.frame(id = test_df$id, target = preds_binary_new)
+preds_submit <- predict(model, dtest_pub)
+submission   <- data.frame(id = test_df$id,
+                           target = ifelse(preds_submit > 0.5, 1, 0))
 write.csv(submission, "submission6.csv", row.names = FALSE)

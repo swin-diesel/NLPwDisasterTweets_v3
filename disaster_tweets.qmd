@@ -1,0 +1,128 @@
+---
+title: "NLP with Disaster Tweets - Model Comparison"
+author: "Michael Swindle"
+format:
+  html:
+    toc: true
+    code-fold: true
+  pdf:
+    documentclass: scrartcl
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+<!-- inline dark‑mode CSS -->
+```{=html}
+<style>
+body            { background-color:#141A22; color:#ffffff; }
+pre, code       { background-color:#1e2733; color:#ffffff; }
+a               { color:#4da3ff; }
+table, th, td   { border-color:#666666; }
+</style>
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align = 'center', dpi = 96)
+library(tidyverse)
+library(caret)
+library(xgboost)
+library(word2vec)
+library(textstem)
+library(tm)
+source("helpers.R")
+set.seed(123)
+
+train_master <- read_csv("train.csv")
+test_master  <- read_csv("test.csv")
+```
+
+## 1 Overview
+
+Kaggle provides 10 000 labelled tweets and asks: *Is this tweet about a real disaster?*  
+Three pipelines scale from sparse TF‑IDF counts to dense Word2Vec embeddings.
+
+---
+
+## 2 Pipelines
+
+| Version | Feature set | Key steps |
+|---------|-------------|-----------|
+| **v7**  | TF‑IDF      | Lower‑case, punctuation strip, stop‑word removal, XGBoost |
+| **v8**  | Clean TF‑IDF | Adds UK→US spelling map, extra noise removal |
+| **v9**  | Word2Vec    | 100‑dim CBOW vectors averaged per tweet, XGBoost |
+
+---
+
+## 3 Results – Internal vs Kaggle
+
+```{r compare, fig.cap="Internal 20 % hold‑out vs Kaggle leaderboard"}
+# internal split
+internal <- tibble(
+  Pipeline = c("v7 TF‑IDF", "v8 Clean TF‑IDF", "v9 Word2Vec"),
+  Internal = c(run_v7(train_master, test_master),
+               run_v8(train_master, test_master),
+               run_v9(train_master, test_master))
+)
+
+# hard‑coded leaderboard scores
+kaggle <- tibble(
+  Pipeline = c("v7 TF‑IDF", "v8 Clean TF‑IDF", "v9 Word2Vec"),
+  Kaggle   = c(0.56114, 0.57370, 0.76953)
+)
+
+results <- internal %>% left_join(kaggle, by = "Pipeline")
+
+# table
+knitr::kable(results, digits = 3,
+             col.names = c("Pipeline", "Internal F1", "Kaggle F1"))
+
+# grouped bars
+plot_df <- results %>% pivot_longer(-Pipeline, names_to = "Source", values_to = "F1")
+ggplot(plot_df, aes(Pipeline, F1, fill = Source)) +
+  geom_col(position = position_dodge(0.7), width = 0.6, colour = "black") +
+  scale_fill_brewer(palette = "Blues") +
+  labs(title = "Internal vs Kaggle F1 scores",
+       y = "F1 score",
+       fill = "Score source") +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.background  = element_rect(fill = "white", colour = "white"),
+    panel.background = element_rect(fill = "white", colour = "white")
+  )
+```
+
+### Why Kaggle is lower
+
+Random splits leak tweets from the same event into both train and test, inflating F1.  
+Kaggle’s hidden set keeps events together and has a different class balance, so scores drop.
+
+---
+
+## 4 Lessons Learned
+
+* Word2Vec gains about 0.20 F1 over sparse counts on both evaluations.  
+* Extra cleaning offers negligible benefit.  
+* Robust validation is essential – naïve random splits overstate performance.
+
+---
+
+## 5 Next Steps
+
+1. Hyper‑parameter search.  
+2. BERT baseline via HuggingFace.  
+3. Ensemble TF‑IDF and embeddings.
+
+---
+
+## Appendix
+
+<details>
+<summary><strong>Full session info (click to expand)</strong></summary>
+
+```{r session-info}
+sessionInfo()
+```
+
+</details>
